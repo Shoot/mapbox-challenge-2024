@@ -1,48 +1,10 @@
-/* global chrome */
-import React, {useEffect, useState} from 'react';
-import mapboxgl from "mapbox-gl";
-import MapboxLanguage from "@mapbox/mapbox-gl-language";
+import mapboxgl from 'mapbox-gl';
+import MapboxLanguage from '@mapbox/mapbox-gl-language';
 mapboxgl.accessToken = "pk.eyJ1IjoibWFwYXRob24yMDI0LXRlYW01IiwiYSI6ImNsdmFtM2drMjE2cmsya216dW9mbTk4dW8ifQ.xAHiLx6THdPQKrnNVMTgNg";
-export const App = () => {
-  const [tabUrl, setTabUrl] = useState(null);
-  useEffect(() => {
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (currentTab) {
-        setTabUrl(currentTab.url);
-      }
-    });
-    const updateTabUrl = (tabId, changeInfo, tab) => {
-      if (changeInfo.url && tab.active) {
-        setTabUrl(changeInfo.url);
-      }
-    };
-    chrome.tabs.onUpdated.addListener(updateTabUrl);
-    return () => {
-      chrome.tabs.onUpdated.removeListener(updateTabUrl);
-    };
-  }, []);
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [error, setError] = useState(null);
-  useEffect(() => {
-    const successHandler = (position) => {
-      setLatitude(position.coords.latitude);
-      setLongitude(position.coords.longitude);
-      setError(null);
-    };
-    const errorHandler = (err) => {
-      setError(err.message);
-    };
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(successHandler, errorHandler);
-    } else {
-      setError('Geolocation is not supported by this browser.');
-    }
-  }, []);
-  let {lat, lon, url} = {latitude, longitude, tabUrl}
+const MapComponent = (props) => {
+  let {lat, lon, url} = props
   let zoom = 11;
-  if (lat>56||lat<51||lon>33||lon<23||1) {
+  if (lat>56||lat<51||lon>33||lon<23) {
     lat=53.900400
     lon=27.559192
     zoom=7
@@ -221,17 +183,5 @@ export const App = () => {
     el.innerHTML = html;
     return el.firstChild;
   }
-  return (
-    !error
-    ?
-      tabUrl && tabUrl.startsWith("https://catalog.onliner.by")
-      ?
-        <div>
-          <h1>Onliner-map</h1>
-        </div>
-      :
-        <h1>Please make sure you're on a product page on catalog.onliner.by and try again</h1>
-    :
-      <h1>{error}</h1>
-  );
-};
+}
+export default MapComponent;
