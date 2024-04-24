@@ -1,23 +1,40 @@
 /* global chrome */
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import mapboxgl from "mapbox-gl";
 import MapboxLanguage from "@mapbox/mapbox-gl-language";
-
-mapboxgl.accessToken = "pk.eyJ1IjoibWFwYXRob24yMDI0LXRlYW01IiwiYSI6ImNsdmFtM2drMjE2cmsya216dW9mbTk4dW8ifQ.xAHiLx6THdPQKrnNVMTgNg";
+mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
 function App() {
-  let lat = 53;
-  let lon = 27;
-  let error = "";
-  let zoom = 11;
-  let currentTabUrl = "https://catalog.onliner.by/"
-  if (lat > 56 || lat < 51 || lon > 33 || lon < 23 || 1) {
-    lat = 53.900400
-    lon = 27.559192
-    zoom = 7
-  }
+  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
+  const [activeTabUrl, setActiveTabUrl] = useState(null);
+  useEffect(() => {
+    const getActiveTabUrl = async () => {
+      const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+      const activeTab = tabs[0];
+      const url = activeTab.url;
+      setActiveTabUrl(url);
+      setLoading(false);
+    };
+    getActiveTabUrl();
+    chrome.tabs.onActivated.addListener(getActiveTabUrl);
+    return () => {
+      chrome.tabs.onActivated.removeListener(getActiveTabUrl);
+    };
+  }, []);
+  const lat = 53.900400
+  const lon = 27.559192
+  const zoom = 11;
   const mapContainerRef = useRef(null);
   useEffect(() => {
+    if (loading) {
+      return
+    }
+    if (!activeTabUrl || !activeTabUrl.startsWith("https://catalog.onliner.by")) {
+      document.getElementById("root").innerHTML = `<h1>Please make sure you're on a product page on catalog.onliner.by and try again</h1>`
+      return
+    }
+    console.log(activeTabUrl)
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       zoom: zoom,
@@ -27,48 +44,54 @@ function App() {
     map.addControl(new MapboxLanguage());
     map.addControl(new mapboxgl.NavigationControl());
     map.on("load", () => {
-      map.addSource("earthquakes", {
-        type: "geojson",
-        data: "http://146.59.12.51:8000/do/visionpro1t.geojson",
-        cluster: true,
-        clusterRadius: 70,
-        clusterProperties: {
-          // keep separate counts for each magnitude category in a cluster
-          min_price: ["min", ["get", "price"]],
-        },
-      });
-      map.loadImage(
-        "luxa.org-opacity-changed-bg.png",
-        (error, image) => {
-          if (error) throw error;
-
-          map.addImage("rect", image);
-
-          map.addLayer({
-            id: "points",
-            type: "symbol",
-            source: "earthquakes", // reference the data source
-            filter: ["!=", "cluster", true],
-            layout: {
-              "icon-image": "rect", // reference the image
-              "text-field": [
-                "format",
-                ["concat", ["to-string", ["get", "price"]], " руб."],
-              ],
-              "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-              "text-size": 14,
-              "icon-text-fit": "both",
-              "icon-size": 1.4,
-            },
-            paint: {
-              "text-color": "red",
+      fetch("http://146.59.12.51:8000/do/" + activeTabUrl + ".geojson").then((rawData) => {
+        rawData.json().then((data) => {
+          console.log("Fetched")
+          console.log(data)
+          setLoadingData(false)
+          map.addSource("stores", {
+            type: "geojson",
+            data: data,
+            cluster: true,
+            clusterRadius: 70,
+            clusterProperties: {
+              min_price: ["min", ["get", "price"]],
             },
           });
-        },
-      );
+          map.loadImage(
+            "opacity-changed-bg.png",
+            (error, image) => {
+              if (error) throw error;
+
+              map.addImage("rect", image);
+
+              map.addLayer({
+                id: "points",
+                type: "symbol",
+                source: "stores", // reference the data source
+                filter: ["!=", "cluster", true],
+                layout: {
+                  "icon-image": "rect", // reference the image
+                  "text-field": [
+                    "format",
+                    ["concat", ["to-string", ["get", "price"]], " руб."],
+                  ],
+                  "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+                  "text-size": 14,
+                  "icon-text-fit": "both",
+                  "icon-size": 1.4,
+                  "icon-allow-overlap": true,
+                },
+                paint: {
+                  "text-color": "red",
+                },
+              });
+            },
+          );
+        });
+      });
     });
     map.on("click", "points", (e) => {
-      console.log(e);
       const coordinates = e.features[0].geometry.coordinates.slice();
       const price = e.features[0].properties.price;
       const href_img = e.features[0].properties.pic;
@@ -85,9 +108,10 @@ function App() {
     });
     const markers = {};
     let markersOnScreen = {};
+
     function updateMarkers() {
       const newMarkers = {};
-      const features = map.querySourceFeatures("earthquakes");
+      const features = map.querySourceFeatures("stores");
       for (const feature of features) {
         const coords = feature.geometry.coordinates;
         const props = feature.properties;
@@ -95,7 +119,7 @@ function App() {
         const id = props.cluster_id;
         let marker = markers[id];
         if (!marker) {
-          const el = createDonutChart(props);
+          const el = shit(props);
           marker = markers[id] = new mapboxgl.Marker({
             element: el,
           }).setLngLat(coords);
@@ -108,13 +132,15 @@ function App() {
       }
       markersOnScreen = newMarkers;
     }
+
     map.on("render", () => {
-      if (!map.isSourceLoaded("earthquakes")) return;
+      if (!map.isSourceLoaded("stores")) return;
       updateMarkers();
     });
     return () => map.remove();
-  }, []);
-  function createDonutChart(props) {
+  }, [loading, activeTabUrl]);
+
+  function shit(props) {
     const {point_count} = props;
     const h = 30;
     let html = `<svg width="${4 * h}" height="${h}">`;
@@ -127,20 +153,12 @@ function App() {
     el.innerHTML = html;
     return el.firstChild;
   }
+
   return (
-    !error
-      ?
-      currentTabUrl && currentTabUrl.startsWith("https://catalog.onliner.by")
-        ?
-        <div>
-          <h1>Onliner-map</h1>
-          <div ref={mapContainerRef} style={{width: '100%', height: '460px'}}/>
-          ;
-        </div>
-        :
-        <h1>Please make sure you're on a product page on catalog.onliner.by and try again</h1>
-      :
-      <h1>{error}</h1>
+    <>
+      <h1>Onliner-map {loading || loadingData ? "[Loading...]" : "[Ready]"}</h1>
+      <div ref={mapContainerRef} style={{width: '100%', height: '100%'}}/>
+    </>
   );
 }
 
