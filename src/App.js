@@ -4,41 +4,42 @@ import mapboxgl from "mapbox-gl";
 import MapboxLanguage from "@mapbox/mapbox-gl-language";
 mapboxgl.accessToken = "pk.eyJ1IjoibWFwYXRob24yMDI0LXRlYW01IiwiYSI6ImNsdmFtM2drMjE2cmsya216dW9mbTk4dW8ifQ.xAHiLx6THdPQKrnNVMTgNg";
 function App() {
-  const [currentTabUrl, setCurrentTabUrl] = useState('');
-
-  useEffect(() => {
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-      const currentTab = tabs[0];
-      if (currentTab) {
-        setCurrentTabUrl(currentTab.url);
-      }
-    });
-  }, []);
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [error, setError] = useState(null);
-  useEffect(() => {
-    const successHandler = (position) => {
-      setLatitude(position.coords.latitude);
-      setLongitude(position.coords.longitude);
-      setError(null);
-    };
-    const errorHandler = (err) => {
-      setError(err.message);
-    };
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(successHandler, errorHandler);
-    } else {
-      setError('Geolocation is not supported by this browser.');
-    }
-  }, []);
-  let {lat, lon, url} = {latitude, longitude, currentTabUrl}
-  let zoom = 11;
-  // let lat = 53;
-  // let lon = 27;
-  // let error = "";
+  // const [currentTabUrl, setCurrentTabUrl] = useState('');
+  //
+  // useEffect(() => {
+  //   chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
+  //     const currentTab = tabs[0];
+  //     if (currentTab) {
+  //       setCurrentTabUrl(currentTab.url);
+  //     }
+  //   });
+  // }, []);
+  // const [latitude, setLatitude] = useState(null);
+  // const [longitude, setLongitude] = useState(null);
+  // const [error, setError] = useState(null);
+  // useEffect(() => {
+  //   const successHandler = (position) => {
+  //     setLatitude(position.coords.latitude);
+  //     setLongitude(position.coords.longitude);
+  //     setError(null);
+  //   };
+  //   const errorHandler = (err) => {
+  //     setError(err.message);
+  //   };
+  //   if (navigator.geolocation) {
+  //     navigator.geolocation.getCurrentPosition(successHandler, errorHandler);
+  //   } else {
+  //     setError('Geolocation is not supported by this browser.');
+  //   }
+  // }, []);
+  // let {lat, lon, url} = {latitude, longitude, currentTabUrl}
   // let zoom = 11;
-  // let tabUrl = "https://catalog.onliner.by/"
+
+  let lat = 53;
+  let lon = 27;
+  let error = "";
+  let zoom = 11;
+  let currentTabUrl = "https://catalog.onliner.by/"
   if (lat>56||lat<51||lon>33||lon<23||1) {
     lat=53.900400
     lon=27.559192
@@ -230,7 +231,7 @@ function App() {
       ?
         <div>
           <h1>Onliner-map</h1>
-          <div ref={mapContainerRef}/>;
+          <div ref={mapContainerRef} style={{ width: '100%', height: '400px' }}/>;
         </div>
       :
         <h1>Please make sure you're on a product page on catalog.onliner.by and try again</h1>
