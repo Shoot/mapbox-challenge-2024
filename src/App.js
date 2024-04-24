@@ -1,26 +1,18 @@
 /* global chrome */
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import mapboxgl from "mapbox-gl";
 import MapboxLanguage from "@mapbox/mapbox-gl-language";
 mapboxgl.accessToken = "pk.eyJ1IjoibWFwYXRob24yMDI0LXRlYW01IiwiYSI6ImNsdmFtM2drMjE2cmsya216dW9mbTk4dW8ifQ.xAHiLx6THdPQKrnNVMTgNg";
-export const App = () => {
-  const [tabUrl, setTabUrl] = useState(null);
+function App() {
+  const [currentTabUrl, setCurrentTabUrl] = useState('');
+
   useEffect(() => {
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
       const currentTab = tabs[0];
       if (currentTab) {
-        setTabUrl(currentTab.url);
+        setCurrentTabUrl(currentTab.url);
       }
     });
-    const updateTabUrl = (tabId, changeInfo, tab) => {
-      if (changeInfo.url && tab.active) {
-        setTabUrl(changeInfo.url);
-      }
-    };
-    chrome.tabs.onUpdated.addListener(updateTabUrl);
-    return () => {
-      chrome.tabs.onUpdated.removeListener(updateTabUrl);
-    };
   }, []);
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
@@ -40,20 +32,27 @@ export const App = () => {
       setError('Geolocation is not supported by this browser.');
     }
   }, []);
-  let {lat, lon, url} = {latitude, longitude, tabUrl}
+  let {lat, lon, url} = {latitude, longitude, currentTabUrl}
   let zoom = 11;
+  // let lat = 53;
+  // let lon = 27;
+  // let error = "";
+  // let zoom = 11;
+  // let tabUrl = "https://catalog.onliner.by/"
   if (lat>56||lat<51||lon>33||lon<23||1) {
     lat=53.900400
     lon=27.559192
     zoom=7
   }
-  const map = new mapboxgl.Map({
-    container: document.getElementById('map'),
-    zoom: zoom,
-    center: [lon, lat],
-    style: "mapbox://styles/mapathon2024-team5/clvc3jldh00v801qz7qqggaso",
-  });
-  map.addControl(new MapboxLanguage());
+  const mapContainerRef = useRef(null);
+  useEffect(() => {
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      zoom: zoom,
+      center: [lon, lat],
+      style: "mapbox://styles/mapathon2024-team5/clvc3jldh00v801qz7qqggaso",
+    });
+    map.addControl(new MapboxLanguage());
   map.addControl(new mapboxgl.NavigationControl());
   map.on("load", () => {
     map.addSource("earthquakes", {
@@ -193,6 +192,9 @@ export const App = () => {
     updateMarkers();
     // updatePoints();
   });
+    return () => map.remove();
+  }, []);
+
 
   // code for creating an SVG donut chart from feature properties
   function createDonutChart(props) {
@@ -224,14 +226,16 @@ export const App = () => {
   return (
     !error
     ?
-      tabUrl && tabUrl.startsWith("https://catalog.onliner.by")
+      currentTabUrl && currentTabUrl.startsWith("https://catalog.onliner.by")
       ?
         <div>
           <h1>Onliner-map</h1>
+          <div ref={mapContainerRef}/>;
         </div>
       :
         <h1>Please make sure you're on a product page on catalog.onliner.by and try again</h1>
     :
       <h1>{error}</h1>
   );
-};
+}
+export default App
